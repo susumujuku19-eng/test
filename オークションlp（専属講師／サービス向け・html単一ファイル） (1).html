@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>専属講師オークション | 進塾</title>
+  <meta name="description" content="専属講師契約のオークションページ。現在価格、入札フォーム、入札履歴、ルール、FAQ、規約を1ページで完結。" />
+  <meta property="og:title" content="専属講師オークション" />
+  <meta property="og:description" content="現在価格・残り時間をリアルタイム表示。入札は最短1分で完了。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://dummyimage.com/1200x630/0f172a/ffffff&text=Auction+LP" />
+  <meta name="format-detection" content="telephone=no,email=no,address=no" />
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { jp: ['Noto Sans JP', 'ui-sans-serif', 'system-ui'] } } } };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <!-- JSON-LD（構造化データ）: Service + Offer（オークション期間はavailabilityEndsで表現） -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "専属講師契約（進塾）",
+    "serviceType": "学習指導・受験コーチング",
+    "provider": {
+      "@type": "Organization",
+      "name": "進塾"
+    },
+    "areaServed": "JP",
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "JPY",
+      "price": "0",
+      "availability": "https://schema.org/InStock",
+      "availabilityStarts": "2025-11-01T12:00:00+09:00",
+      "availabilityEnds": "2025-11-05T12:00:00+09:00",
+      "url": "https://example.com/auction"
+    }
+  }
+  </script>
+
+  <style>
+    /* スクロール時のヘッダー影 */
+    .elevate{ box-shadow: 0 4px 20px rgba(2,6,23,.2); }
+    /* 数字を等幅に */
+    .tabular-nums{ font-variant-numeric: tabular-nums; }
+    /* 薄い罫線 */
+    .hairline{ border-color: rgba(148,163,184,.35); }
+    /* いたずら入札対策のための軽量スタイル */
+    .otp-sent{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)}
+    .warning{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25)}
+  </style>
+
+  <!-- Stripe.js（公開鍵で読み込み） -->
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-jp">
+  <!-- Sticky Header -->
+  <header id="siteHeader" class="sticky top-0 z-40 bg-white/80 backdrop-blur border-b hairline transition-shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white grid place-items-center font-black">S</div>
+        <div>
+          <p class="text-sm text-slate-500 leading-none">進塾</p>
+          <h1 class="text-base font-bold leading-tight">専属講師オークション</h1>
+        </div>
+      </div>
+      <a href="#bid" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow">
+        今すぐ入札
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-10 sm:py-14">
+      <div class="grid md:grid-cols-2 gap-8 items-center">
+        <div>
+          <p class="text-slate-300 text-sm mb-2">Auction #001</p>
+          <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight">専属講師契約（3か月）<span class="block text-slate-300 text-xl font-semibold mt-2">中学受験 算・理 集中特訓</span></h2>
+          <ul class="mt-5 text-slate-200 text-sm space-y-2">
+            <li class="flex gap-2"><span>・</span><span>週2回×80分（オンライン／対面選択可）</span></li>
+            <li class="flex gap-2"><span>・</span><span>宿題設計／LINEフォロー／模試データ分析</span></li>
+            <li class="flex gap-2"><span>・</span><span>志望校別カリキュラムと過去問管理</span></li>
+          </ul>
+          <div class="mt-6 grid grid-cols-2 gap-3">
+            <a href="#details" class="px-4 py-3 rounded-xl bg-white text-slate-900 font-semibold text-sm text-center">内容を見る</a>
+            <a href="#bid" class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 font-semibold text-sm text-center">入札へ進む</a>
+          </div>
+        </div>
+        <!-- Timer + Price Card -->
+        <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+          <div class="grid sm:grid-cols-2 gap-5">
+            <div class="bg-slate-900/40 rounded-xl p-4">
+              <p class="text-slate-300 text-xs">残り時間</p>
+              <div id="countdown" class="mt-1 text-3xl sm:text-4xl font-black tabular-nums">--:--:--</div>
+              <p id="endAtLabel" class="text-slate-300 text-xs mt-1">終了：--</p>
+            </div>
+            <div class="bg-slate-900/40 rounded-xl p-4">
+              <p class="text-slate-300 text-xs">現在価格（税別）</p>
+              <div class="mt-1 text-3xl sm:text-4xl font-black tabular-nums"><span id="currentPrice">--</span><span class="text-base ml-1">JPY</span></div>
+              <p id="minInc" class="text-slate-300 text-xs mt-1">最小入札単位：-- 円</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-200 mt-4">※ 終了5分前の入札で自動延長（+5分）。最低落札価格（リザーブ）を設定可能。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Info Strips -->
+  <section class="bg-white border-y hairline">
+    <div class="max-w-6xl mx-auto px-4 grid sm:grid-cols-3 gap-4 py-6">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-lg bg-slate-900 text-white grid place-items-center">⏱️</div>
+        <div>
+          <p class="text-sm font-semibold">スケジュール</p>
+          <p class="text-sm text-slate-600">契約期間：3か月 / 週2回×80分</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-lg bg-slate-900 text-white grid place-items-center">🧭</div>
+        <div>
+          <p class="text-sm font-semibold">対象</p>
+          <p class="text-sm text-slate-600">小6 中学受験（偏差値45〜60）</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-lg bg-slate-900 text-white grid place-items-center">🔒</div>
+        <div>
+          <p class="text-sm font-semibold">安心サポート</p>
+          <p class="text-sm text-slate-600">契約書／個人情報保護／返金規定あり</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Details -->
+  <section id="details" class="max-w-6xl mx-auto px-4 py-12">
+    <div class="grid lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2">
+        <h3 class="text-xl font-bold">指導内容</h3>
+        <div class="mt-3 text-slate-700 text-sm space-y-2">
+          <p>・志望校別の年間→直前期リバースプランニング / 単元別弱点補強 / 模試の誤答分析</p>
+          <p>・「宿題A/B/C」マルチレイヤ設計 / 週報（学習ログ） / LINEコーチング</p>
+          <p>・過去問管理（取捨選択・採点基準・時間配分指示）/ 計算力強化 / 図表読み取り</p>
+        </div>
+        <h3 class="mt-8 text-xl font-bold">成果物</h3>
+        <ul class="mt-3 text-slate-700 text-sm list-disc pl-5 space-y-1">
+          <li>初回：学習診断レポート（PDF）</li>
+          <li>毎週：学習計画（Googleスプレッドシート）</li>
+          <li>月次：成果レビュー（保護者ミーティング）</li>
+        </ul>
+        <h3 class="mt-8 text-xl font-bold">条件</h3>
+        <ul class="mt-3 text-slate-700 text-sm list-disc pl-5 space-y-1">
+          <li>対応形式：オンライン（Zoom）/ 対面（赤羽エリア）</li>
+          <li>振替：月1回まで（前日20:00までの連絡）</li>
+          <li>教材費・交通費：実費</li>
+        </ul>
+      </div>
+      <!-- Side Card: Auction Params -->
+      <aside class="bg-white rounded-2xl border hairline p-5 h-fit">
+        <h4 class="font-bold">オークション情報</h4>
+        <dl class="mt-3 text-sm grid grid-cols-2 gap-y-2">
+          <dt class="text-slate-500">開始価格</dt><dd id="dlStartPrice" class="font-semibold text-right">-</dd>
+          <dt class="text-slate-500">最小入札単位</dt><dd id="dlStep" class="font-semibold text-right">-</dd>
+          <dt class="text-slate-500">リザーブ</dt><dd id="dlReserve" class="font-semibold text-right">-</dd>
+          <dt class="text-slate-500">入札延長</dt><dd class="text-right">終了5分前で+5分</dd>
+        </dl>
+        <p class="mt-3 text-xs text-slate-500">※ 実際の落札・決済は管理者確認後に請求書／オンライン決済で行います。</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Bid Section -->
+  <section id="bid" class="bg-white border-t hairline">
+    <div class="max-w-6xl mx-auto px-4 py-12">
+      <h3 class="text-2xl font-black">入札フォーム</h3>
+      <p class="text-sm text-slate-600 mt-2">次の条件を満たす金額で入札してください。<span class="ml-1 font-semibold">現在価格＋最小入札単位</span>以上。</p>
+
+      <div class="grid lg:grid-cols-3 gap-8 mt-6">
+        <!-- Form -->
+        <form id="bidForm" class="lg:col-span-2 grid sm:grid-cols-2 gap-4">
+          <!-- honeypot（bot用：表示しない） -->
+          <div class="hidden"><label>ウェブサイト</label><input name="website" /></div>
+
+          <div>
+            <label class="text-sm font-semibold">お名前</label>
+            <input required name="name" class="mt-1 w-full rounded-xl border hairline px-3 py-2" placeholder="山田 太郎" />
+          </div>
+          <div>
+            <label class="text-sm font-semibold">メールアドレス</label>
+            <div class="flex gap-2">
+              <input required type="email" name="email" class="mt-1 w-full rounded-xl border hairline px-3 py-2" placeholder="you@example.com" />
+              <button id="otpBtn" type="button" class="mt-1 px-3 rounded-lg border hairline text-sm">認証コード送付</button>
+            </div>
+            <div id="otpWrap" class="hidden mt-2 p-3 rounded-xl otp-sent">
+              <label class="text-sm font-semibold">メールに届いた6桁コード</label>
+              <div class="flex gap-2 mt-1">
+                <input type="text" inputmode="numeric" maxlength="6" name="otp" class="w-40 rounded-xl border hairline px-3 py-2 tabular-nums" placeholder="123456" />
+                <button id="otpVerifyBtn" type="button" class="px-3 rounded-lg bg-slate-900 text-white text-sm">認証</button>
+              </div>
+              <p id="otpMsg" class="text-xs mt-1"></p>
+            </div>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-sm font-semibold">入札額（円・税別）</label>
+            <input required type="number" inputmode="numeric" name="amount" class="mt-1 w-full rounded-xl border hairline px-3 py-2 tabular-nums" placeholder="例：150000" />
+            <p id="bidHint" class="text-xs text-slate-500 mt-1">最低入札額：- 円</p>
+          </div>
+          <!-- 事前デポジット（任意→本番はStripeリンク経由でトークン付与） -->（任意→本番はStripeリンク経由でトークン付与） -->
+          <div>
+            <label class="text-sm font-semibold">保証金</label>
+            <p class="text-xs text-slate-600 mt-1">いたずら防止のため <span class="font-semibold">¥3,000</span> の返金可能デポジットをお願いする場合があります。<a id="depositLink" href="#" class="underline">支払いページ</a> 経由で入金するとURLに <code>deposit=ok</code> が付与されます。</p>
+            <label class="inline-flex items-start gap-2 text-sm mt-2"><input type="checkbox" name="deposit"> デポジット支払い済み</label>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="inline-flex items-start gap-2 text-sm"><input type="checkbox" required class="mt-1"> 利用規約とプライバシーポリシーに同意します</label>
+          </div>
+          <div class="sm:col-span-2 flex gap-3">
+            <button class="px-5 py-3 rounded-xl bg-slate-900 text-white font-semibold">入札を送信</button>
+            <button type="reset" class="px-5 py-3 rounded-xl border hairline">リセット</button>
+          </div>
+          <p id="formMsg" class="sm:col-span-2 text-sm mt-2"></p>
+        </form>
+
+        <!-- History -->
+        <div class="lg:col-span-1">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold">入札履歴</h4>
+            <button id="sortToggle" class="text-xs text-slate-500 underline">新しい順</button>
+          </div>
+          <ul id="bidHistory" class="mt-3 space-y-3 text-sm"></ul>
+          <p class="text-xs text-slate-500 mt-3">※ デモ表示（実運用では管理画面・スプレッドシート連携等を実装してください）</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Anti-Fraud Note -->
+  <section class="max-w-6xl mx-auto px-4 py-6">
+    <div class="rounded-2xl warning p-5">
+      <h4 class="font-bold">いたずら入札防止の実運用ポイント</h4>
+      <ul class="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+        <li>メールOTP（本ページ対応）＋ <span class="font-semibold">デポジット（返金可）</span> を導入</li>
+        <li>バックエンドで <span class="font-semibold">IP/端末指紋レート制限</span>、 <span class="font-semibold">同一名義の多重入札検知</span></li>
+        <li>Webhookで <span class="font-semibold">Stripe支払い＝入札有効化トークン</span> を自動付与</li>
+        <li>使い捨てドメイン・NGワード・地域ブロック等の <span class="font-semibold">シグナルスコアリング</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Rules & FAQ -->
+  <section class="max-w-6xl mx-auto px-4 py-12">
+    <div class="grid lg:grid-cols-2 gap-10">
+      <div>
+        <h3 class="text-xl font-bold">入札ルール</h3>
+        <ol class="mt-3 list-decimal pl-5 text-sm text-slate-700 space-y-2">
+          <li>入札は <span class="font-semibold">現在価格＋最小入札単位</span>以上の金額にて行ってください。</li>
+          <li>終了5分以内の入札は自動で <span class="font-semibold">+5分延長</span> されます。</li>
+          <li>リザーブ価格が設定されている場合、到達しない入札は落札不可です。</li>
+          <li>実際の契約は運営の審査・合意の上で成立します。</li>
+          <li>公序良俗に反する利用目的の入札はお断りします。</li>
+        </ol>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold">FAQ</h3>
+        <div class="mt-3 space-y-3">
+          <details class="bg-white rounded-xl border hairline p-4">
+            <summary class="font-semibold">決済はどのように行いますか？</summary>
+            <p class="text-sm text-slate-700 mt-2">落札後、請求書（銀行振込）またはオンライン決済リンク（Stripe等）をお送りします。</p>
+          </details>
+          <details class="bg-white rounded-xl border hairline p-4">
+            <summary class="font-semibold">匿名入札は可能ですか？</summary>
+            <p class="text-sm text-slate-700 mt-2">ページ上の表示名は匿名にできますが、審査のため管理側では連絡先を把握します。</p>
+          </details>
+          <details class="bg-white rounded-xl border hairline p-4">
+            <summary class="font-semibold">中途解約はできますか？</summary>
+            <p class="text-sm text-slate-700 mt-2">契約書の規定に基づきます。クーリングオフや返金条件を明記します。</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terms -->
+  <section class="bg-slate-900 text-slate-100">
+    <div class="max-w-6xl mx-auto px-4 py-10">
+      <h3 class="text-xl font-bold">利用規約（抜粋）</h3>
+      <ul class="mt-3 text-sm text-slate-300 list-disc pl-5 space-y-2">
+        <li>本ページは <span class="font-semibold">デモ入札</span> を含みます。実装前に法令・プラットフォーム規約を確認してください。</li>
+        <li>契約の当事者は落札者と進塾（または担当講師）です。</li>
+        <li>個人情報はプライバシーポリシーに従って取り扱います。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="bg-white border-t hairline">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-sm text-slate-600 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <p>© <span id="year"></span> 進塾</p>
+      <div class="flex gap-4">
+        <a href="#" class="underline">特定商取引法に基づく表示</a>
+        <a href="#" class="underline">プライバシーポリシー</a>
+        <a href="#bid" class="underline">入札へ</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= Stripe Backend サンプル（参考：実装用） =================
+  Node/Express（Cloud Functions可）
+  -------------------------------------------------
+  POST /api/create-checkout-session
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+    app.post('/api/create-checkout-session', async (req,res)=>{
+      const { amount, success_url, cancel_url, metadata } = req.body
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [{ price_data: { currency:'jpy', product_data:{ name:'保証金' }, unit_amount: amount*100 }, quantity:1 }],
+        success_url, cancel_url,
+        metadata,
+      })
+      res.json({ id: session.id })
+    })
+
+  Apps Script（doPost）
+  -------------------------------------------------
+  function doPost(e){
+    var data = JSON.parse(e.postData.contents);
+    var payload = {
+      mode: 'payment',
+      line_items: [{ price_data: { currency:'jpy', product_data:{ name:'保証金' }, unit_amount: data.amount*100 }, quantity:1 }],
+      success_url: data.success_url,
+      cancel_url: data.cancel_url,
+      metadata: data.metadata
+    };
+    var res = UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions',{
+      method:'post', muteHttpExceptions: true,
+      headers:{ Authorization: 'Bearer ' + STRIPE_SECRET_KEY },
+      payload: payload
+    });
+    return ContentService.createTextOutput(res.getContentText()).setMimeType(ContentService.MimeType.JSON);
+  }
+  ====================================================================== -->
+
+  <!-- Configurable Auction Parameters & Scripts -->
+  <script>
+    // ======== 設定（ここを書き換えるだけで利用できます） ========
+    const AUCTION_CONFIG = {
+      title: '専属講師契約（3か月）',
+      startPrice: 100000,
+      minStep: 5000,
+      reservePrice: 200000,
+      endAtJst: '2025-11-05T12:00:00+09:00',
+      antiSniping: { thresholdMinutes: 5, extendMinutes: 5 },
+      // いたずら防止関連
+      requireDeposit: true,
+      depositAmount: 3000,
+      // ▼ Stripe 連携設定：いずれかのモードを選択
+      stripe: {
+        mode: 'checkout_session', // 'checkout_session' or 'payment_link'
+        publishableKey: 'pk_test_REPLACE_ME',
+        backendCreateSessionUrl: '/api/create-checkout-session', // checkout_sessionモード時に使用
+        paymentLinkUrl: 'https://buy.stripe.com/REPLACE_ME',      // payment_linkモード時に使用
+        successReturnUrl: (location.origin + location.pathname + '?deposit=ok'),
+        cancelReturnUrl: location.href
+      },
+      emailOtpEndpoint: '/api/send-otp',
+      blockDisposableDomains: ['mailinator.com','10minutemail.com','tempmail.com','yopmail.com']
+    };
+
+    // ======== 内部状態 ========
+    let currentPrice = AUCTION_CONFIG.startPrice;
+    const bids = [];
+    let sortDesc = true;
+
+    // ======== ユーティリティ ========
+    const fmt = n => new Intl.NumberFormat('ja-JP').format(n);
+    const jst = (iso) => new Date(iso);
+
+    function setHeaderElevation(){
+      const h = document.getElementById('siteHeader');
+      if(window.scrollY > 8) h.classList.add('elevate'); else h.classList.remove('elevate');
+    }
+
+    // カウントダウン
+    function startCountdown(){
+      const endAt = jst(AUCTION_CONFIG.endAtJst);
+      document.getElementById('endAtLabel').textContent = `終了：${endAt.toLocaleString('ja-JP')}`;
+      const el = document.getElementById('countdown');
+      function tick(){
+        const now = new Date();
+        let diff = endAt - now;
+        if(diff <= 0){ el.textContent = '00:00:00'; clearInterval(tmr); return; }
+        const h = Math.floor(diff/3_600_000);
+        diff -= h*3_600_000;
+        const m = Math.floor(diff/60_000);
+        diff -= m*60_000;
+        const s = Math.floor(diff/1000);
+        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      }
+      tick();
+      const tmr = setInterval(tick, 500);
+    }
+
+    // 履歴描画
+    function renderHistory(){
+      const list = document.getElementById('bidHistory');
+      list.innerHTML = '';
+      const items = [...bids].sort((a,b)=> sortDesc ? b.time - a.time : a.time - b.time);
+      items.forEach(b => {
+        const li = document.createElement('li');
+        li.className = 'bg-white rounded-xl border hairline p-3';
+        li.innerHTML = `<div class="flex items-center justify-between">
+          <div class="font-semibold">¥${fmt(b.amount)}</div>
+          <div class="text-xs text-slate-500 tabular-nums">${b.time.toLocaleString('ja-JP')}</div>
+        </div>
+        <div class="text-xs text-slate-600 mt-1">入札者：${b.maskName}</div>`;
+        list.appendChild(li);
+      });
+    }
+
+    // 最低入札額更新
+    function updateFloors(){
+      const floor = currentPrice + AUCTION_CONFIG.minStep;
+      document.getElementById('bidHint').textContent = `最低入札額：${fmt(floor)} 円`;
+      document.getElementById('minInc').textContent = `最小入札単位：${fmt(AUCTION_CONFIG.minStep)} 円`;
+      document.getElementById('currentPrice').textContent = fmt(currentPrice);
+      document.getElementById('dlStartPrice').textContent = `¥${fmt(AUCTION_CONFIG.startPrice)}`;
+      document.getElementById('dlStep').textContent = `¥${fmt(AUCTION_CONFIG.minStep)}`;
+      document.getElementById('dlReserve').textContent = AUCTION_CONFIG.reservePrice ? `¥${fmt(AUCTION_CONFIG.reservePrice)}` : 'なし';
+    }
+
+    // 自動延長（スナイプ対策）
+    function autoExtendIfNeeded(){
+      const endAt = jst(AUCTION_CONFIG.endAtJst);
+      const now = new Date();
+      const remainingMin = (endAt - now) / 60000;
+      if(remainingMin <= AUCTION_CONFIG.antiSniping.thresholdMinutes){
+        const newEnd = new Date(endAt.getTime() + AUCTION_CONFIG.antiSniping.extendMinutes*60000);
+        AUCTION_CONFIG.endAtJst = newEnd.toISOString();
+        document.getElementById('endAtLabel').textContent = `終了：${newEnd.toLocaleString('ja-JP')}（延長）`;
+      }
+    }
+
+    // マスク名生成（例：山* 太*）
+    function maskName(name){
+      const [sei, mei] = name.trim().split(/\s+/);
+      const m1 = sei ? sei[0] + '＊' : '匿名';
+      const m2 = mei ? mei[0] + '＊' : '';
+      return `${m1}${m2? ' ' + m2 : ''}`;
+    }
+
+    // OTP送信・検証・フォーム送信／Stripeデポジット
+    function setupForm(){
+      const form = document.getElementById('bidForm');
+      const msg = document.getElementById('formMsg');
+      const otpBtn = document.getElementById('otpBtn');
+      const otpWrap = document.getElementById('otpWrap');
+      const otpMsg = document.getElementById('otpMsg');
+      const otpVerifyBtn = document.getElementById('otpVerifyBtn');
+      const depositLink = document.getElementById('depositLink');
+
+      // ▼ Stripeデポジット：クリックで決済に遷移
+      depositLink.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        try{
+          const stripe = Stripe(AUCTION_CONFIG.stripe.publishableKey);
+          if(AUCTION_CONFIG.stripe.mode === 'payment_link'){
+            // Payment Linkにそのまま遷移（成功時の戻りURLはStripe側設定でも可）
+            location.href = AUCTION_CONFIG.stripe.paymentLinkUrl;
+            return;
+          }
+          // Checkout Sessionをバックエンドで作成→セッションIDでリダイレクト
+          const payload = {
+            amount: AUCTION_CONFIG.depositAmount,
+            success_url: AUCTION_CONFIG.stripe.successReturnUrl,
+            cancel_url: AUCTION_CONFIG.stripe.cancelReturnUrl,
+            // 任意メタデータ（入札ページ識別など）
+            metadata: { auction: AUCTION_CONFIG.title }
+          };
+          const res = await fetch(AUCTION_CONFIG.stripe.backendCreateSessionUrl, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          });
+          if(!res.ok){ throw new Error('Checkout Sessionの作成に失敗しました'); }
+          const data = await res.json();
+          const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+          if(error){ alert(error.message); }
+        }catch(err){
+          console.error(err); alert('決済ページに遷移できませんでした。しばらくして再実行してください。');
+        }
+      });
+
+      // URLパラメータでデポジット済みを検出
+      const params = new URLSearchParams(location.search);
+      if(params.get('deposit') === 'ok'){
+        form.elements['deposit'].checked = true;
+      }
+
+      
+
+      // OTP送信（本番：fetchでメール送信、デモ：コードをconsole出力）
+      let issuedOtp = null; let otpVerified = false; let otpCooldown = false;
+      otpBtn.addEventListener('click', async ()=>{
+        const email = String(form.elements['email'].value||'').trim();
+        if(!email){ otpMsg.textContent='メールを入力してください。'; otpMsg.className='text-xs text-red-600'; otpWrap.classList.remove('hidden'); return; }
+        const domain = email.split('@')[1]||'';
+        if(AUCTION_CONFIG.blockDisposableDomains.includes(domain)){
+          otpMsg.textContent='使い捨てメールはご利用いただけません。別のメールをご利用ください。';
+          otpMsg.className='text-xs text-red-600'; otpWrap.classList.remove('hidden'); return; }
+        if(otpCooldown) return;
+        otpCooldown = true; setTimeout(()=>otpCooldown=false, 30000);
+        otpWrap.classList.remove('hidden');
+        issuedOtp = String(Math.floor(100000 + Math.random()*900000));
+        console.info('[DEMO] OTP code =', issuedOtp);
+        otpMsg.textContent='認証コードを送信しました。メールをご確認ください（デモではコンソールに表示）。';
+        otpMsg.className='text-xs text-slate-700';
+        // 本番送信例：
+        // await fetch(AUCTION_CONFIG.emailOtpEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      });
+
+      otpVerifyBtn.addEventListener('click', ()=>{
+        const val = String(form.elements['otp'].value||'').trim();
+        if(val && issuedOtp && val===issuedOtp){
+          otpVerified = true; otpMsg.textContent='メール認証に成功しました。'; otpMsg.className='text-xs text-emerald-700';
+        }else{ otpVerified = false; otpMsg.textContent='認証に失敗しました。コードを確認してください。'; otpMsg.className='text-xs text-red-600'; }
+      });
+
+      // 直近送信からのクールダウン（二重連投防止）
+      let lastSubmitAt = 0;
+
+      form.addEventListener('submit', (e)=>{
+        e.preventDefault();
+        msg.textContent='';
+        if(form.elements['website'].value){ msg.textContent='送信に失敗しました。'; msg.className='text-sm text-red-600'; return; }
+
+        const name = String(form.elements['name'].value||'').trim();
+        const email = String(form.elements['email'].value||'').trim();
+        const amount = Number(form.elements['amount'].value);
+        const depositChecked = !!form.elements['deposit'].checked;
+        const domain = email.split('@')[1]||'';
+        if(AUCTION_CONFIG.blockDisposableDomains.includes(domain)){
+          msg.textContent='使い捨てメールはご利用いただけません。'; msg.className='text-sm text-red-600'; return; }
+        if(!otpVerified){ msg.textContent='メール認証を完了してください。'; msg.className='text-sm text-red-600'; return; }
+        if(AUCTION_CONFIG.requireDeposit && !depositChecked){
+          msg.innerHTML = `保証金の入金が必要です。<a class="underline" href="#" onclick="return false;">上の『支払いページ』</a> から決済後、このページに <code>?deposit=ok</code> を付けて戻ってください。`;
+          msg.className='text-sm text-red-600'; return; }
+
+        const min = currentPrice + AUCTION_CONFIG.minStep;
+        if(amount < min){ msg.textContent=`入札額が不足しています（最低：¥${fmt(min)}）。`; msg.className='text-sm text-red-600'; return; }
+
+        const now = Date.now();
+        if(now - lastSubmitAt < 60000){ msg.textContent='短時間での連続入札は制限されています。しばらくしてから再実行してください。'; msg.className='text-sm text-red-600'; return; }
+        lastSubmitAt = now;
+
+        const bid = { amount, name, email, maskName: maskName(name), time: new Date() };
+        bids.push(bid);
+        currentPrice = amount;
+        msg.textContent = '入札を受け付けました（デモ）。担当よりご連絡します。';
+        msg.className='text-sm text-emerald-700';
+        form.reset();
+        updateFloors();
+        renderHistory();
+        autoExtendIfNeeded();
+      });
+
+      document.getElementById('sortToggle').addEventListener('click', ()=>{
+        sortDesc = !sortDesc; renderHistory();
+        document.getElementById('sortToggle').textContent = sortDesc ? '新しい順' : '古い順';
+      });
+    }
+
+    // ======== 簡易テスト（開発用） ========
+    function runTests(){
+      const results = [];
+      const push = (name, ok, note='') => results.push({ name, ok, note });
+      try{ push('config/startPrice number', typeof AUCTION_CONFIG.startPrice === 'number'); }catch(e){ push('config/startPrice number', false, e.message); }
+      try{ updateFloors(); push('updateFloors executes', true); }catch(e){ push('updateFloors executes', false, e.message); }
+      try{ const m = maskName('山田 太郎'); push('maskName format', /^.＊\s?.＊?$/.test(m), m); }catch(e){ push('maskName format', false, e.message); }
+      try{ startCountdown(); push('startCountdown executes', true); }catch(e){ push('startCountdown executes', false, e.message); }
+      console.group('%cAuction LP Self-Tests','color:#0a0');
+      results.forEach(r=> console[r.ok?'log':'error'](`${r.ok?'✅':'❌'} ${r.name} ${r.note?'- '+r.note:''}`));
+      console.groupEnd();
+    }
+
+    // 初期化
+    window.addEventListener('DOMContentLoaded', ()=>{
+      currentPrice = AUCTION_CONFIG.startPrice;
+      document.getElementById('year').textContent = new Date().getFullYear();
+      updateFloors();
+      startCountdown();
+      setupForm();
+      setHeaderElevation();
+      window.addEventListener('scroll', setHeaderElevation);
+      // テストを常時実行（UIには影響なし・コンソールに結果表示）
+      runTests();
+    });
+
+    // テスト・デバッグ用に一部関数を公開（任意）
+    window.__auction = { fmt, jst, updateFloors, startCountdown, renderHistory, maskName };
+  </script>
+</body>
+</html>
